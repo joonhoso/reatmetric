@@ -399,6 +399,8 @@ public class TmPacketProcessor implements IRawDataSubscriber, IDebugInfoProvider
     public static Quality checkPacketQuality(TmPusConfiguration confForApid, SpacePacket spacePacket) {
         if(confForApid == null) {
             return Quality.GOOD;
+        } else if(spacePacket.isIdle()) {
+            return Quality.GOOD;
         } else {
             switch (confForApid.getTmPecPresent()) {
                 case CRC: {
