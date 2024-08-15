@@ -41,6 +41,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 
 /**
@@ -71,7 +72,10 @@ public class EventProcessor extends AbstractSystemEntityProcessor<EventProcessin
             try {
                 initialise(processor.getInitialiser());
             } catch(ReatmetricException re) {
-                LOG.log(Level.SEVERE, String.format("Cannot initialise event %d (%s) with archived state as defined by the initialisation time", definition.getId(), definition.getLocation()), re);
+                LogRecord record = new LogRecord(Level.SEVERE, String.format("Cannot initialise event %d (%s) with archived state as defined by the initialisation time", definition.getId(), definition.getLocation()));
+                record.setThrown(re);
+                record.setParameters(new Object[]{definition.getLocation(), getSystemEntityId()});
+                LOG.log(record);
             }
         }
         // Initialise the entity state
@@ -94,13 +98,13 @@ public class EventProcessor extends AbstractSystemEntityProcessor<EventProcessin
     public List<AbstractDataItem> process(EventOccurrence newValue) {
         // Guard condition: if this event is mirrored and a sample was injected, alarm and exit processing
         if(definition.isMirrored() && newValue != null) {
-            LOG.log(Level.SEVERE, String.format("Event %d (%s) is a mirrored event, but a sample was injected. Processing ignored.", definition.getId(), definition.getLocation()));
+            LOG.log(Level.SEVERE, String.format("Event %d (%s) is a mirrored event, but a sample was injected. Processing ignored.", definition.getId(), definition.getLocation()), new Object[]{definition.getLocation(), getSystemEntityId()});
             return Collections.emptyList();
         }
         // Guard condition: if this event has an expression, newValue must be null
         if(definition.getCondition() != null && newValue != null) {
             if(LOG.isLoggable(Level.SEVERE)) {
-                LOG.log(Level.SEVERE, String.format("Event %d (%s) is a condition-driven event, but an external occurrence was injected. Processing ignored.", id(), path()));
+                LOG.log(Level.SEVERE, String.format("Event %d (%s) is a condition-driven event, but an external occurrence was injected. Processing ignored.", id(), path()), new Object[]{definition.getLocation(), getSystemEntityId()});
             }
             return Collections.emptyList();
         }
@@ -132,7 +136,10 @@ public class EventProcessor extends AbstractSystemEntityProcessor<EventProcessin
                     conditionTriggerState = triggered;
                     // No need to set more
                 } catch (ScriptException|ClassCastException e) {
-                    LOG.log(Level.SEVERE, "Error when evaluating condition of event " + definition.getId() + " (" + definition.getLocation() + "): " + e.getMessage(), e);
+                    LogRecord record = new LogRecord(Level.SEVERE, "Error when evaluating condition of event " + definition.getId() + " (" + definition.getLocation() + "): " + e.getMessage());
+                    record.setThrown(e);
+                    record.setParameters(new Object[]{definition.getLocation(), getSystemEntityId()});
+                    LOG.log(record);
                     // Finalize entity state and prepare for the returned list of data items
                     computeEntityState(generatedStates);
                     // Stop doing the processing
@@ -239,11 +246,11 @@ public class EventProcessor extends AbstractSystemEntityProcessor<EventProcessin
 
     void raiseEvent(String source) {
         if(this.definition.isMirrored()) {
-            LOG.log(Level.SEVERE, String.format("Cannot event %s from internal source %s, event is mirrored", path(), source));
+            LOG.log(Level.SEVERE, String.format("Cannot event %s from internal source %s, event is mirrored", path(), source), new Object[]{definition.getLocation(), getSystemEntityId()});
             return;
         }
         if(LOG.isLoggable(Level.FINEST)) {
-            LOG.log(Level.FINEST, String.format("Raising event %s from internal source %s, entity status is %s", path(), source, entityStatus));
+            LOG.log(Level.FINEST, String.format("Raising event %s from internal source %s, entity status is %s", path(), source, entityStatus), new Object[]{definition.getLocation(), getSystemEntityId()});
         }
         // If the event is enabled, then you can mark it as raised
         if(entityStatus == Status.ENABLED) {
@@ -339,7 +346,7 @@ public class EventProcessor extends AbstractSystemEntityProcessor<EventProcessin
     public List<AbstractDataItem> mirror(EventData itemToMirror) {
         // Guard condition: if this event is not mirrored, alarm and exit processing
         if(!definition.isMirrored()) {
-            LOG.log(Level.SEVERE, String.format("Event %d (%s) is not a mirrored event, but an event full state was injected. Processing ignored.", definition.getId(), definition.getLocation()));
+            LOG.log(Level.SEVERE, String.format("Event %d (%s) is not a mirrored event, but an event full state was injected. Processing ignored.", definition.getId(), definition.getLocation()), new Object[]{definition.getLocation(), getSystemEntityId()});
             return Collections.emptyList();
         }
         // To be returned at the end of the processing

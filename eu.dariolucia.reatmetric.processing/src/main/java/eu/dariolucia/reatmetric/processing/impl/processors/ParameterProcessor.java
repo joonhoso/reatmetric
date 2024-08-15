@@ -44,6 +44,7 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
+import java.util.logging.LogRecord;
 import java.util.logging.Logger;
 /**
  * This class is used to process a system entity of type PARAMETER.
@@ -168,12 +169,12 @@ public class ParameterProcessor extends AbstractSystemEntityProcessor<ParameterP
     public synchronized List<AbstractDataItem> process(ParameterSample newValue) throws ProcessingModelException {
         // Guard condition: if this parameter is mirrored and a sample was injected, alarm and exit processing
         if(definition.isMirrored() && newValue != null) {
-            LOG.log(Level.SEVERE, String.format("Parameter %d (%s) is a mirrored parameter, but a sample was injected. Processing ignored.", definition.getId(), definition.getLocation()));
+            LOG.log(Level.SEVERE, String.format("Parameter %d (%s) is a mirrored parameter, but a sample was injected. Processing ignored.", definition.getId(), definition.getLocation()), new Object[]{definition.getLocation(), getSystemEntityId()});
             return Collections.emptyList();
         }
         // Guard condition: if this parameter has an expression, newValue must be null
         if(definition.getExpression() != null && newValue != null) {
-            LOG.log(Level.SEVERE, String.format("Parameter %d (%s) is a synthetic parameter, but a sample was injected. Processing ignored.", definition.getId(), definition.getLocation()));
+            LOG.log(Level.SEVERE, String.format("Parameter %d (%s) is a synthetic parameter, but a sample was injected. Processing ignored.", definition.getId(), definition.getLocation()), new Object[]{definition.getLocation(), getSystemEntityId()});
             return Collections.emptyList();
         }
         // To be returned at the end of the processing
@@ -259,7 +260,10 @@ public class ParameterProcessor extends AbstractSystemEntityProcessor<ParameterP
                             sourceValue = definition.getExpression().execute(processor, null, definition.getRawType());
                             sourceValue = ValueUtil.convert(sourceValue, definition.getRawType());
                         } catch (Exception e) {
-                            LOG.log(Level.SEVERE, "Error when computing value of parameter " + definition.getId() + " (" + definition.getLocation() + "): " + e.getMessage(), e);
+                            LogRecord record = new LogRecord(Level.SEVERE, "Error when computing value of parameter " + definition.getId() + " (" + definition.getLocation() + "): " + e.getMessage());
+                            record.setThrown(e);
+                            record.setParameters(new Object[]{definition.getLocation(), getSystemEntityId()});
+                            LOG.log(record);
                             // Overrule validity to be INVALID
                             validity = Validity.INVALID;
                             // Put source value to be null
@@ -282,7 +286,10 @@ public class ParameterProcessor extends AbstractSystemEntityProcessor<ParameterP
                         // Then run checks
                         alarmState = check(sourceValue, engValue, generationTime, newValue == null);
                     } catch (CalibrationException e) {
-                        LOG.log(Level.SEVERE, "Error when calibrating parameter " + id() + " (" + path() + ") with source value " + sourceValue + ": " + e.getMessage(), e);
+                        LogRecord record = new LogRecord(Level.SEVERE, "Error when calibrating parameter " + id() + " (" + path() + ") with source value " + sourceValue + ": " + e.getMessage());
+                        record.setThrown(e);
+                        record.setParameters(new Object[]{definition.getLocation(), getSystemEntityId()});
+                        LOG.log(record);
                         // Validity is INVALID, to prevent other processors to take the null eng. value as good value
                         validity = Validity.INVALID;
                         // Alarm state is set to UNKNOWN
@@ -408,7 +415,7 @@ public class ParameterProcessor extends AbstractSystemEntityProcessor<ParameterP
     public synchronized List<AbstractDataItem> mirror(ParameterData itemToMirror) {
         // Guard condition: if this parameter is not mirrored, alarm and exit processing
         if(!definition.isMirrored()) {
-            LOG.log(Level.SEVERE, String.format("Parameter %d (%s) is not a mirrored parameter, but a parameter full state was injected. Processing ignored.", definition.getId(), definition.getLocation()));
+            LOG.log(Level.SEVERE, String.format("Parameter %d (%s) is not a mirrored parameter, but a parameter full state was injected. Processing ignored.", definition.getId(), definition.getLocation()), new Object[]{definition.getLocation(), getSystemEntityId()});
             return Collections.emptyList();
         }
         // To be returned at the end of the processing
@@ -507,7 +514,10 @@ public class ParameterProcessor extends AbstractSystemEntityProcessor<ParameterP
                     raiseEvent(ptd.getEvent().getId());
                 }
             } catch(Exception e) {
-                LOG.log(Level.SEVERE, "Event " + ptd.getEvent().getId() + " cannot be raised by parameter " + id() + " (" + path() + ") due to unexpected exception: " + e.getMessage(), e);
+                LogRecord record = new LogRecord(Level.SEVERE, "Event " + ptd.getEvent().getId() + " cannot be raised by parameter " + id() + " (" + path() + ") due to unexpected exception: " + e.getMessage());
+                record.setThrown(e);
+                record.setParameters(new Object[]{definition.getLocation(), getSystemEntityId()});
+                LOG.log(record);
             }
         }
     }
@@ -516,7 +526,7 @@ public class ParameterProcessor extends AbstractSystemEntityProcessor<ParameterP
         EventProcessor ev = (EventProcessor)processor.getProcessor(eventId);
         if(ev == null) {
             if(LOG.isLoggable(Level.SEVERE)) {
-                LOG.severe(String.format("Event %d cannot be raised by parameter %d (%s): event processor not found", eventId, id(), path()));
+                LOG.log(Level.SEVERE, String.format("Event %d cannot be raised by parameter %d (%s): event processor not found", eventId, id(), path()), new Object[]{definition.getLocation(), getSystemEntityId()});
             }
         } else {
             ev.raiseEvent(path());
@@ -563,7 +573,10 @@ public class ParameterProcessor extends AbstractSystemEntityProcessor<ParameterP
                         continue;
                     }
                 } catch (ValidityException e) {
-                    LOG.log(Level.SEVERE, "Error when evaluating applicability for check " + cd.getName() + " on parameter " + definition.getId() + " (" + definition.getLocation() + "): " + e.getMessage(), e);
+                    LogRecord record = new LogRecord(Level.SEVERE, "Error when evaluating applicability for check " + cd.getName() + " on parameter " + definition.getId() + " (" + definition.getLocation() + "): " + e.getMessage());
+                    record.setThrown(e);
+                    record.setParameters(new Object[]{definition.getLocation(), getSystemEntityId()});
+                    LOG.log(record);
                     // Stop here, it is in ERROR
                     return AlarmState.ERROR;
                 }
@@ -574,7 +587,10 @@ public class ParameterProcessor extends AbstractSystemEntityProcessor<ParameterP
             try {
                 state = cd.check(cd.isRawValueChecked() ? rawValue : engValue, generationTime, violationCounter.get(), processor);
             } catch (CheckException e) {
-                LOG.log(Level.SEVERE, "Error when evaluating check " + cd.getName() + " on parameter " + definition.getId() + " (" + definition.getLocation() + "): " + e.getMessage(), e);
+                LogRecord record = new LogRecord(Level.SEVERE, "Error when evaluating check " + cd.getName() + " on parameter " + definition.getId() + " (" + definition.getLocation() + "): " + e.getMessage());
+                record.setThrown(e);
+                record.setParameters(new Object[]{definition.getLocation(), getSystemEntityId()});
+                LOG.log(record);
                 // Return immediately (fail fast)
                 return AlarmState.ERROR;
             }
@@ -599,10 +615,16 @@ public class ParameterProcessor extends AbstractSystemEntityProcessor<ParameterP
                 boolean valid = definition.getValidity().execute(processor);
                 return valid ? Validity.VALID : Validity.INVALID;
             } catch(ValidityException e) {
-                LOG.log(Level.SEVERE, "Error when computing validity of parameter " + definition.getId() + " (" + definition.getLocation() + "): " + e.getMessage(), e);
+                LogRecord record = new LogRecord(Level.SEVERE, "Error when computing validity of parameter " + definition.getId() + " (" + definition.getLocation() + "): " + e.getMessage());
+                record.setThrown(e);
+                record.setParameters(new Object[]{definition.getLocation(), getSystemEntityId()});
+                LOG.log(record);
                 return Validity.ERROR;
             } catch(Exception e) {
-                LOG.log(Level.SEVERE, "Unexpected error when computing validity of parameter " + definition.getId() + " (" + definition.getLocation() + "): " + e.getMessage(), e);
+                LogRecord record = new LogRecord(Level.SEVERE, "Unexpected error when computing validity of parameter " + definition.getId() + " (" + definition.getLocation() + "): " + e.getMessage());
+                record.setThrown(e);
+                record.setParameters(new Object[]{definition.getLocation(), getSystemEntityId()});
+                LOG.log(record);
                 return Validity.ERROR;
             }
         }
