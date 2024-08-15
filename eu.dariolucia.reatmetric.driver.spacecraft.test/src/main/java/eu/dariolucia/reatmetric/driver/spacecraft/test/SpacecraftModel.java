@@ -123,8 +123,8 @@ public class SpacecraftModel implements IVirtualChannelReceiverOutput, IServiceI
     public static final String PUS_TYPE_FIELD_NAME = "I-PUS-TYPE";
     public static final String PUS_SUBTYPE_FIELD_NAME = "I-PUS-SUBTYPE";
     public static final int TM_FRAME_LENGTH = 1115;
-    public static final int PACKET_GENERATION_PERIOD_MS = 1000;
-    public static final int CYCLE_MODULE_SLEEP = 3; // 10
+    public static final int PACKET_GENERATION_PERIOD_MS = 150;
+    public static final int CYCLE_MODULE_SLEEP = 1; // 10
     public static final int SETTER_APID = 10;
     public static final int SETTER_PUS = 69;
 
@@ -186,7 +186,9 @@ public class SpacecraftModel implements IVirtualChannelReceiverOutput, IServiceI
         this.cltuProvider = cltuProvider;
         this.rafProvider = rafProvider;
         this.rafProvider.register(this);
-        this.cltuProvider.setTransferDataOperationHandler(this::cltuReceived);
+        if(this.cltuProvider != null) {
+            this.cltuProvider.setTransferDataOperationHandler(this::cltuReceived);
+        }
         this.encDecDefs = Definition.load(new FileInputStream(tmTcFilePath));
         this.processingDefinition = ProcessingDefinition.load(new FileInputStream(processingModelPath));
         this.spacecraftConfiguration = SpacecraftConfiguration.load(new FileInputStream(spacecraftFilePath));
@@ -208,7 +210,7 @@ public class SpacecraftModel implements IVirtualChannelReceiverOutput, IServiceI
         initialiseSecurity();
         initialiseSpacecraftDownlink();
         initialiseSpacePacketGeneration();
-        this.resolver = new ProcessingModelBasedResolver(processingDefinition, new DefinitionValueBasedResolver(new DefaultNullBasedResolver(), true), spacecraftConfiguration.getTmPacketConfiguration().getParameterIdOffset(), encDecDefs);
+        this.resolver = new ProcessingModelBasedResolver(processingDefinition, new DefinitionValueBasedResolver(new RandomBasedResolved(), true), spacecraftConfiguration.getTmPacketConfiguration().getParameterIdOffset(), encDecDefs);
         this.caduTcpPort = caduTcpPort;
         this.packetTcpPort = caduTcpPort > 0 ? caduTcpPort + 10000 : -1;
         // Create encoder in case it is needed
@@ -471,9 +473,59 @@ public class SpacecraftModel implements IVirtualChannelReceiverOutput, IServiceI
         }
         running = true;
         rafProvider.updateProductionStatus(Instant.now(), LockStatusEnum.IN_LOCK, LockStatusEnum.IN_LOCK, LockStatusEnum.IN_LOCK, LockStatusEnum.IN_LOCK, ProductionStatusEnum.RUNNING);
-        cltuProvider.updateProductionStatus(CltuProductionStatusEnum.OPERATIONAL, CltuUplinkStatusEnum.NOMINAL, BUFFER_AVAILABLE);
-        cltuProvider.waitForBind(true, null);
+        if(cltuProvider != null) {
+            cltuProvider.updateProductionStatus(CltuProductionStatusEnum.OPERATIONAL, CltuUplinkStatusEnum.NOMINAL, BUFFER_AVAILABLE);
+            cltuProvider.waitForBind(true, null);
+        }
         rafProvider.waitForBind(true, null);
+        // Subscribe some change status listener to the SLE providers, to put them to wait for bind in case of errors
+        IServiceInstanceListener waitForBindListener = new IServiceInstanceListener() {
+            @Override
+            public void onStateUpdated(ServiceInstance serviceInstance, ServiceInstanceState serviceInstanceState) {
+                if(serviceInstanceState.getState() == ServiceInstanceBindingStateEnum.UNBOUND) {
+                    // Start watchdog
+                    new Thread(() -> {
+                        try {
+                            Thread.sleep(3000);
+                        } catch (InterruptedException e) {
+                            //
+                        }
+                        if(serviceInstance.getCurrentBindingState() == ServiceInstanceBindingStateEnum.UNBOUND) {
+                            serviceInstance.waitForBind(true, null);
+                        }
+                    }).start();
+                }
+            }
+
+            @Override
+            public void onPduReceived(ServiceInstance serviceInstance, Object o, String s, byte[] bytes) {
+                // Nothing
+            }
+
+            @Override
+            public void onPduSent(ServiceInstance serviceInstance, Object o, String s, byte[] bytes) {
+                // Nothing
+            }
+
+            @Override
+            public void onPduSentError(ServiceInstance serviceInstance, Object o, String s, byte[] bytes, String s1, Exception e) {
+                // Nothing
+            }
+
+            @Override
+            public void onPduDecodingError(ServiceInstance serviceInstance, byte[] bytes) {
+                // Nothing
+            }
+
+            @Override
+            public void onPduHandlingError(ServiceInstance serviceInstance, Object o, byte[] bytes) {
+                // Nothing
+            }
+        };
+        rafProvider.register(waitForBindListener);
+        if(cltuProvider != null) {
+            cltuProvider.register(waitForBindListener);
+        }
         tmThread = new Thread(this::sendPackets, "Packet Sender");
         tmThread.start();
         generationThread = new Thread(this::generatePackets);

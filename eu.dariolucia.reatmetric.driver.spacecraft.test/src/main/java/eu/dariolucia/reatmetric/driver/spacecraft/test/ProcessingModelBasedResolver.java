@@ -165,6 +165,11 @@ public class ProcessingModelBasedResolver implements IEncodeResolver {
                 for(EnumCalibrationPoint o : cal.getPoints()) {
                     data.add(o.getInput());
                 }
+            } else if(cd instanceof XYCalibration) {
+                XYCalibration cal = (XYCalibration) cd;
+                for(XYCalibrationPoint o : cal.getPoints()) {
+                    data.add(o.getX());
+                }
             }
             return data;
         }
@@ -176,6 +181,10 @@ public class ProcessingModelBasedResolver implements IEncodeResolver {
         if(parameter.getLinkedParameter() != null && parameter.getLinkedParameter() instanceof FixedLinkedParameter) {
             Object cached = cachedValue.get(((FixedLinkedParameter) parameter.getLinkedParameter()).getParameter().getExternalId());
             if(cached != null) {
+                // Probability to invalidate the cache: 10%
+                if(Math.random() < 0.1) {
+                    cachedValue.remove(((FixedLinkedParameter) parameter.getLinkedParameter()).getParameter().getExternalId());
+                }
                 return (Boolean) cached;
             } else {
                 List<Object> data = acceptableValues.get((int) ((FixedLinkedParameter) parameter.getLinkedParameter()).getParameter().getExternalId());
@@ -218,6 +227,10 @@ public class ProcessingModelBasedResolver implements IEncodeResolver {
         if(parameter.getLinkedParameter() != null && parameter.getLinkedParameter() instanceof FixedLinkedParameter) {
             Object cached = cachedValue.get(((FixedLinkedParameter) parameter.getLinkedParameter()).getParameter().getExternalId());
             if(cached != null) {
+                // Probability to invalidate the cache: 10%
+                if(Math.random() < 0.1) {
+                    cachedValue.remove(((FixedLinkedParameter) parameter.getLinkedParameter()).getParameter().getExternalId());
+                }
                 return (int) cached;
             } else {
                 List<Object> data = acceptableValues.get((int) ((FixedLinkedParameter) parameter.getLinkedParameter()).getParameter().getExternalId());
@@ -245,6 +258,10 @@ public class ProcessingModelBasedResolver implements IEncodeResolver {
         if(parameter.getLinkedParameter() != null && parameter.getLinkedParameter() instanceof FixedLinkedParameter) {
             Object cached = cachedValue.get(((FixedLinkedParameter) parameter.getLinkedParameter()).getParameter().getExternalId());
             if(cached != null) {
+                // Probability to invalidate the cache: 10%
+                if(Math.random() < 0.1) {
+                    cachedValue.remove(((FixedLinkedParameter) parameter.getLinkedParameter()).getParameter().getExternalId());
+                }
                 return (long) cached;
             } else {
                 List<Object> data = acceptableValues.get((int) ((FixedLinkedParameter) parameter.getLinkedParameter()).getParameter().getExternalId());
@@ -267,6 +284,10 @@ public class ProcessingModelBasedResolver implements IEncodeResolver {
         if(parameter.getLinkedParameter() != null && parameter.getLinkedParameter() instanceof FixedLinkedParameter) {
             Object cached = cachedValue.get(((FixedLinkedParameter) parameter.getLinkedParameter()).getParameter().getExternalId());
             if(cached != null) {
+                // Probability to invalidate the cache: 10%
+                if(Math.random() < 0.1) {
+                    cachedValue.remove(((FixedLinkedParameter) parameter.getLinkedParameter()).getParameter().getExternalId());
+                }
                 return (long) cached;
             } else {
                 List<Object> data = acceptableValues.get((int) ((FixedLinkedParameter) parameter.getLinkedParameter()).getParameter().getExternalId());

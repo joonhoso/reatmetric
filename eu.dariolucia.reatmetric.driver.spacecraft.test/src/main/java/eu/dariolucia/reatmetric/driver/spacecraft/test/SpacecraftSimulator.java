@@ -60,17 +60,17 @@ public class SpacecraftSimulator {
                 rafConf = (RafServiceInstanceConfiguration) sic;
             }
         }
-        if (cltuConf == null) {
-            System.err.println("Error: cannot find CLTU service instance in file " + args[0]);
-            System.exit(1);
-        }
+
         if (rafConf == null) {
             System.err.println("Error: cannot find RAF service instance in file " + args[0]);
             System.exit(1);
         }
         // Create the CLTU service instance
-        CltuServiceInstanceProvider cltuServiceInstanceProvider = new CltuServiceInstanceProvider(sleConfFile.getPeerConfiguration(), cltuConf);
-        cltuServiceInstanceProvider.configure();
+        CltuServiceInstanceProvider cltuServiceInstanceProvider = null;
+        if(cltuConf != null) {
+            cltuServiceInstanceProvider = new CltuServiceInstanceProvider(sleConfFile.getPeerConfiguration(), cltuConf);
+            cltuServiceInstanceProvider.configure();
+        }
         // Create the RAF service instance
         RafServiceInstanceProvider rafServiceInstanceProvider = new RafServiceInstanceProvider(sleConfFile.getPeerConfiguration(), rafConf);
         rafServiceInstanceProvider.configure();
