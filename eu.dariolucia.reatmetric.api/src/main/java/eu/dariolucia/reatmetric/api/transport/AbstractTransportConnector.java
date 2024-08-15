@@ -169,13 +169,13 @@ abstract public class AbstractTransportConnector implements ITransportConnector 
     @Override
     public Map<String, Pair<String, ValueTypeEnum>> getSupportedProperties() {
         checkPrepared();
-        return Collections.unmodifiableMap(initialisationDescriptionMap);
+        return Map.copyOf(initialisationDescriptionMap);
     }
 
     @Override
     public Map<String, Object> getCurrentProperties() {
         checkPrepared();
-        return Collections.unmodifiableMap(initialisationMap);
+        return Map.copyOf(initialisationMap);
     }
 
     @Override
